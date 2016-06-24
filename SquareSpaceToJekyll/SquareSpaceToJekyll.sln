@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquareSpaceToJekyll", "SquareSpaceToJekyll\SquareSpaceToJekyll.csproj", "{7283B26E-3F8A-4A52-AE3E-38E9FE0909A0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{513B2142-CA04-46D5-80C1-F569FDDF1D12}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -15,9 +13,5 @@ Global
 		{7283B26E-3F8A-4A52-AE3E-38E9FE0909A0}.Debug|x86.Build.0 = Debug|x86
 		{7283B26E-3F8A-4A52-AE3E-38E9FE0909A0}.Release|x86.ActiveCfg = Release|x86
 		{7283B26E-3F8A-4A52-AE3E-38E9FE0909A0}.Release|x86.Build.0 = Release|x86
-		{513B2142-CA04-46D5-80C1-F569FDDF1D12}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{513B2142-CA04-46D5-80C1-F569FDDF1D12}.Debug|x86.Build.0 = Debug|Any CPU
-		{513B2142-CA04-46D5-80C1-F569FDDF1D12}.Release|x86.ActiveCfg = Release|Any CPU
-		{513B2142-CA04-46D5-80C1-F569FDDF1D12}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
