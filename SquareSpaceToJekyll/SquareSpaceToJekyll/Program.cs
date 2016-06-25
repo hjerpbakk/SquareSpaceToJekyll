@@ -52,7 +52,13 @@ namespace SquareSpaceToJekyll
 
                 blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
                 blogPost.Save(postsPath);
+
+                // TODO: Fix broken posts
+                // TODO: Fix special tags
+                // TODO: Download and relink images
             }
+
+            // TODO: Other pages
         }
 
         public class LinkPost : BlogPost {
@@ -93,8 +99,9 @@ namespace SquareSpaceToJekyll
                     content.AppendLine();
                     content.Append("layout: ");
                     content.AppendLine(layout);
-                    content.Append("title: ");
-                    content.AppendLine(Title);
+                    content.Append("title: \"");
+                    content.Append(Title);
+                    content.AppendLine("\"");
                     if (tags.Count > 0) {
                         content.Append("tags: ");
                         var tagsString = string.Join(", ", tags);
