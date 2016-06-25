@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -44,8 +45,12 @@ namespace SquareSpaceToJekyll
 
                 blogPost.Title = xmlBlogPost.Element("title").Value;
                 blogPost.Link = xmlBlogPost.Element("link").Value;
-                blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
 
+                foreach (var tag in xmlBlogPost.Elements("category").Where(e => e.Attribute("domain")?.Value == "post_tag").Select(e => e.Value)) {
+                    blogPost.AddTag(tag);
+                }
+
+                blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
                 blogPost.Save(postsPath);
             }
         }
@@ -65,10 +70,14 @@ namespace SquareSpaceToJekyll
 
         public class BlogPost {
             readonly string layout;
+            readonly List<string> tags;
+
             protected readonly StringBuilder content;
 
             public BlogPost() {
                 layout = "post";
+                tags = new List<string>();
+
                 content = new StringBuilder("---");
             }
 
@@ -81,15 +90,23 @@ namespace SquareSpaceToJekyll
                 }
 
                 set {
-                    // TODO: Tags
                     content.AppendLine();
                     content.Append("layout: ");
                     content.AppendLine(layout);
                     content.Append("title: ");
                     content.AppendLine(Title);
+                    if (tags.Count > 0) {
+                        content.Append("tags: ");
+                        var tagsString = string.Join(", ", tags);
+                        content.AppendLine($"[{tagsString}]");
+                    }
                     content.AppendLine("---");
                     content.AppendLine(value);
                 }
+            }
+
+            public void AddTag(string tag) {
+                tags.Add(tag);
             }
 
             public void Save(string basePath) {
