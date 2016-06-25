@@ -29,57 +29,62 @@ namespace SquareSpaceToJekyll
             var postsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_posts")).FullName;
 
 
-            XNamespace ns = "http://wordpress.org/export/1.2/";
+            XNamespace wpNS = "http://wordpress.org/export/1.2/";
             XNamespace contentNS = "http://purl.org/rss/1.0/modules/content/";
-            var blogPosts = children.Where(i => i.Name == "item" && (string)i.Element(ns + "post_type") == "post").First();
+            var blogPosts = children.Where(i => i.Name == "item" && (string)i.Element(wpNS + "post_type") == "post");
+            foreach (var xmlBlogPost in blogPosts) {
+                BlogPost blogPost;
+                if (xmlBlogPost.Element(wpNS + "postmeta")?.Element(wpNS + "meta_key")?.Value == "passthrough_url") {
+                    blogPost = new LinkPost {
+                        ExternalLink = xmlBlogPost.Element(wpNS + "postmeta").Element(wpNS + "meta_value").Value
+                    };
+                } else {
+                    blogPost = new BlogPost();
+                }
 
-            var xmlBlogPost = blogPosts;
-            var blogPost = new BlogPost {
-                Title = xmlBlogPost.Element("title").Value,
-                Link = xmlBlogPost.Element("link").Value,
-                Content = xmlBlogPost.Element(contentNS + "encoded").Value
-            };
+                blogPost.Title = xmlBlogPost.Element("title").Value;
+                blogPost.Link = xmlBlogPost.Element("link").Value;
+                blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
 
-
-            blogPost.Save(postsPath);
+                blogPost.Save(postsPath);
+            }
         }
 
-        public class BlogPost : CalendarBasedPost {
+        public class LinkPost : BlogPost {
+            public string ExternalLink { get; set; }
+
+            public override string Content {
+                set {
+                    content.AppendLine();
+                    content.Append("link: ");
+                    content.Append(ExternalLink);
+                    base.Content = value;
+                }
+            }
+        }
+
+        public class BlogPost {
+            readonly string layout;
+            protected readonly StringBuilder content;
+
             public BlogPost() {
-                postType = "post";
-            }
-        }
-
-        public class LinkPost : CalendarBasedPost {
-            public LinkPost() {
-                // TODO: Set post type
-            }
-
-            public string ExternalURL { get; set; }
-        }
-
-        public abstract class CalendarBasedPost {
-            protected string postType;
-            readonly StringBuilder content;
-
-            protected CalendarBasedPost() {
-                content = new StringBuilder();
+                layout = "post";
+                content = new StringBuilder("---");
             }
 
             public string Title { get; set; }
             public string Link { get; set; }
 
-
-            public string Content {
+            public virtual string Content {
                 get {
                     return content.ToString();
                 }
 
                 set {
                     // TODO: Tags
-                    content.AppendLine("---");
+                    content.AppendLine();
                     content.Append("layout: ");
-                    content.AppendLine(postType);
+                    content.AppendLine(layout);
                     content.Append("title: ");
                     content.AppendLine(Title);
                     content.AppendLine("---");
