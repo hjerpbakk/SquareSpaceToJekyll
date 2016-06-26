@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using SquareSpaceToJekyll.Model;
 
@@ -54,8 +56,6 @@ namespace SquareSpaceToJekyll
                 var savePath = xmlBlogPost.Element(wpNS + "status").Value == "draft" ? draftsPath : postsPath;
                 blogPost.Save(savePath);
 
-                // TODO: Fix special tags
-                // TODO: Fix gif in "Scriptcs IntelliSense in Visual Studio Code"
                 // TODO: Download and relink images
             }
 
@@ -108,8 +108,11 @@ namespace SquareSpaceToJekyll
                         var tagsString = string.Join(", ", tags);
                         content.AppendLine($"[{tagsString}]");
                     }
+
                     content.AppendLine("---");
-                    content.AppendLine(value);
+                    var normalizedContent = Regex.Replace(value, @"\[caption id="".*"" align="".*"" width="".*""\]", "");
+                    normalizedContent = normalizedContent.Replace("[/caption]", "");
+                    content.AppendLine(normalizedContent);
                 }
             }
 
