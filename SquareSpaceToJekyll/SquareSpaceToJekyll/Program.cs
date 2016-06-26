@@ -53,7 +53,6 @@ namespace SquareSpaceToJekyll
                 blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
                 blogPost.Save(postsPath);
 
-                // TODO: Fix broken posts
                 // TODO: Fix special tags
                 // TODO: Download and relink images
             }
@@ -100,7 +99,7 @@ namespace SquareSpaceToJekyll
                     content.Append("layout: ");
                     content.AppendLine(layout);
                     content.Append("title: \"");
-                    content.Append(Title);
+                    content.Append(Title.Replace("\"", "&quot;"));
                     content.AppendLine("\"");
                     if (tags.Count > 0) {
                         content.Append("tags: ");
