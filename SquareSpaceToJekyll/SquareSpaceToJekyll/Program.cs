@@ -28,7 +28,7 @@ namespace SquareSpaceToJekyll
 
             // Blog posts
             var postsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_posts")).FullName;
-
+            var draftsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_drafts")).FullName;
 
             XNamespace wpNS = "http://wordpress.org/export/1.2/";
             XNamespace contentNS = "http://purl.org/rss/1.0/modules/content/";
@@ -51,9 +51,11 @@ namespace SquareSpaceToJekyll
                 }
 
                 blogPost.Content = xmlBlogPost.Element(contentNS + "encoded").Value;
-                blogPost.Save(postsPath);
+                var savePath = xmlBlogPost.Element(wpNS + "status").Value == "draft" ? draftsPath : postsPath;
+                blogPost.Save(savePath);
 
                 // TODO: Fix special tags
+                // TODO: Fix gif in "Scriptcs IntelliSense in Visual Studio Code"
                 // TODO: Download and relink images
             }
 
