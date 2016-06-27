@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using HtmlAgilityPack;
 using SquareSpaceToJekyll.Model;
 
 namespace SquareSpaceToJekyll
@@ -137,14 +138,25 @@ namespace SquareSpaceToJekyll
                     var normalizedContent = Regex.Replace(value, @"\[caption id="".*"" align="".*"" width="".*""\]", "");
                     normalizedContent = normalizedContent.Replace("[/caption]", "");
 
-                    var html = new HtmlAgilityPack.HtmlDocument();
-                    html.LoadHtml(normalizedContent);
+                    var htmlDocument = new HtmlDocument();
+                    htmlDocument.LoadHtml(normalizedContent);
 
-                    var imageTags = html.DocumentNode.SelectNodes("//img");
-                    if (imageTags != null) {
+                    var attributesToRemove = new List<HtmlAttribute>();
+                    var imageTags = htmlDocument.DocumentNode.SelectNodes("//img");
+                    if (UserSettings.DownloadAndFixImages && imageTags != null) {
                         images = new Image[imageTags.Count];
                         Parallel.For(0, imageTags.Count, i => {
                             var src = imageTags[i].Attributes["src"];
+                            var width = imageTags[i].Attributes["width"];
+                            if (width != null) {
+                                attributesToRemove.Add(width);
+                            }
+
+                            var height = imageTags[i].Attributes["height"];
+                            if (height != null) {
+                                attributesToRemove.Add(height);
+                            }
+
                             var imageUrl = src.Value;
                             if (!imageUrl.StartsWith("http", StringComparison.InvariantCulture)) {
                                 var normalizedImageUrl = imageUrl.StartsWith("/", StringComparison.InvariantCulture) ? imageUrl.Remove(0, 1) : imageUrl;
@@ -186,11 +198,14 @@ namespace SquareSpaceToJekyll
                         });
                     }
 
-                    var sb = new StringBuilder();
-                    var sw = new StringWriter(sb);
-                    html.Save(sw);
-                    normalizedContent = sb.ToString();
-                    content.AppendLine(normalizedContent);
+                    foreach (var attribute in attributesToRemove) {
+                        attribute.Remove();
+                    }
+
+                    using (var writer = new StringWriter()) {
+                        htmlDocument.Save(writer);
+                        content.AppendLine(writer.ToString());
+                    }
                 }
             }
 
@@ -248,6 +263,7 @@ namespace SquareSpaceToJekyll
         }
 
         public static class UserSettings {
+            public const bool DownloadAndFixImages = true;
             public const string ImageFolder = "img";
             public const string InternalLinkPrefix = "https://runar-ovesenhjerpbakk.squarespace.com/";
         }
