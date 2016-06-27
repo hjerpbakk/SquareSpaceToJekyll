@@ -141,7 +141,7 @@ namespace SquareSpaceToJekyll
                     html.LoadHtml(normalizedContent);
 
                     var imageTags = html.DocumentNode.SelectNodes("//img");
-                    if (imageTags != null && Title == "Windows Phone 7–Change Live Id") {
+                    if (imageTags != null) {
                         images = new Image[imageTags.Count];
                         Parallel.For(0, imageTags.Count, i => {
                             var src = imageTags[i].Attributes["src"];
