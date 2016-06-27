@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -33,8 +34,8 @@ namespace SquareSpaceToJekyll
 
             // Blog posts
             var io = new IO(pathToJekyllSite);
-            var blogPosts = children.Where(i => i.Name == "item" && (string)i.Element(Namespaces.wpNS + "post_type") == "post");
-            foreach (var xmlBlogPost in blogPosts) {
+            var blogPosts = children.Where(i => i.Name == "item" && (string)i.Element(Namespaces.wpNS + "post_type") == "post").ToArray();
+            Parallel.ForEach(blogPosts, xmlBlogPost => {
                 BlogPost blogPost;
                 if (xmlBlogPost.Element(Namespaces.wpNS + "postmeta")?.Element(Namespaces.wpNS + "meta_key")?.Value == "passthrough_url") {
                     blogPost = new LinkPost(xmlBlogPost, io) {
@@ -54,7 +55,7 @@ namespace SquareSpaceToJekyll
                 blogPost.Content = xmlBlogPost.Element(Namespaces.contentNS + "encoded").Value;
 
                 blogPost.Save();
-            }
+            });
 
             // TODO: Other pages
         }
@@ -140,7 +141,7 @@ namespace SquareSpaceToJekyll
                     html.LoadHtml(normalizedContent);
 
                     var imageTags = html.DocumentNode.SelectNodes("//img");
-                    if (imageTags != null) {
+                    if (imageTags != null && Title == "Windows Phone 7–Change Live Id") {
                         images = new Image[imageTags.Count];
                         Parallel.For(0, imageTags.Count, i => {
                             var src = imageTags[i].Attributes["src"];
@@ -170,7 +171,15 @@ namespace SquareSpaceToJekyll
                                 response.EnsureSuccessStatusCode();
                                 var jsonTask = response.Content.ReadAsByteArrayAsync();
                                 jsonTask.Wait();
-                                images[i] = new Image($"/{UserSettings.ImageFolder}/{WebSafeTitle}/{i + Path.GetFileName(imageUrl)}", jsonTask.Result);
+
+                                var imageName = i + Path.GetFileName(imageUrl);
+                                var queryIndex = imageName.LastIndexOf('?');
+                                if (queryIndex != -1) {
+                                    imageName = imageName.Remove(queryIndex, imageName.Length - queryIndex);    
+                                }
+
+                                var imageFolderNameForPost = Path.GetFileNameWithoutExtension(WebSafeTitle);
+                                images[i] = new Image($"/{UserSettings.ImageFolder}/{imageFolderNameForPost}/{(imageName)}", jsonTask.Result);
                             }
 
                             src.Value = images[i].Source;
@@ -197,16 +206,15 @@ namespace SquareSpaceToJekyll
         }
 
         public class IO {
+            readonly string pathToJekyllSite;
             readonly string postsPath;
             readonly string draftsPath;
 
             public IO(string pathToJekyllSite) {
                 postsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_posts")).FullName;
                 draftsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_drafts")).FullName;
-                ImagesPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, UserSettings.ImageFolder)).FullName;
+                this.pathToJekyllSite = Directory.CreateDirectory(Path.Combine(pathToJekyllSite)).FullName;
             }
-
-            public string ImagesPath { get; }
 
             public void Save(BlogPost blogPost) {
                 SaveBlogPost(blogPost);
@@ -220,9 +228,10 @@ namespace SquareSpaceToJekyll
 
             void SaveImages(BlogPost blogPost) {
                 foreach (var image in blogPost.Images) {
-                    var imageDirForPost = Path.Combine(ImagesPath, blogPost.WebSafeTitle);
+                    var imageDirForPost = pathToJekyllSite + Path.GetDirectoryName(image.Source);
                     Directory.CreateDirectory(imageDirForPost);
-                    File.WriteAllBytes(Path.Combine(imageDirForPost, image.Name), image.Content);
+                    var imageName = WebUtility.UrlDecode(image.Name);
+                    File.WriteAllBytes(Path.Combine(imageDirForPost, imageName), image.Content);
                 }
             }
         }
