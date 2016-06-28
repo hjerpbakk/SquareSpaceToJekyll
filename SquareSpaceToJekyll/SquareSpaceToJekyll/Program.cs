@@ -58,8 +58,9 @@ namespace SquareSpaceToJekyll
                 blogPost.Save();
             });
 
-            // TODO: Other pages
-            // TODO: Check if links are still alive
+            // TODO: Check if external links are still alive
+            // TODO: Check if internal links where converted correctly
+            // TODO: Refactor
 
             // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
 
