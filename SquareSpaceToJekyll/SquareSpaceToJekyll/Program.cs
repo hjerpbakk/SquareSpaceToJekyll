@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using HtmlAgilityPack;
+using SquareSpaceToJekyll;
 using SquareSpaceToJekyll.Model;
 
 namespace SquareSpaceToJekyll
@@ -20,7 +21,6 @@ namespace SquareSpaceToJekyll
         public static void Main (string [] args)
         {
             var xml = XElement.Load("/Users/sankra/Projects/SquareSpaceToJekyll/export.xml");
-            var pathToJekyllSite = "/Users/sankra/Projects/sankra.github.io/test";
 
             var children = xml.Elements().Single().Elements().ToArray();
 
@@ -28,14 +28,14 @@ namespace SquareSpaceToJekyll
             var siteMetaData = new SiteMetaData();
             siteMetaData.Title = children.First(e => e.Name == "title").Value;
             siteMetaData.Description = children.First(e => e.Name == "description").Value;
-            using (TextWriter writer = File.CreateText(Path.Combine(pathToJekyllSite, "siteMetaData.yaml"))) {
+            using (TextWriter writer = File.CreateText(Path.Combine(UserSettings.PathToJekyllSite, "siteMetaData.yaml"))) {
                 var a = new YamlDotNet.Serialization.Serializer();
                 a.Serialize(writer, siteMetaData);
             }
 
             // Blog posts
-            var io = new IO(pathToJekyllSite);
-            var blogPosts = children.Where(i => i.Name == "item" && (string)i.Element(Namespaces.wpNS + "post_type") == "post").ToArray();
+            var io = new IO(UserSettings.PathToJekyllSite);
+            var blogPosts = children.Where(i => i.Name == "item" && i.Element(Namespaces.wpNS + "post_type").Value == "post").ToArray();
             Parallel.ForEach(blogPosts, xmlBlogPost => {
                 BlogPost blogPost;
                 if (xmlBlogPost.Element(Namespaces.wpNS + "postmeta")?.Element(Namespaces.wpNS + "meta_key")?.Value == "passthrough_url") {
@@ -59,218 +59,202 @@ namespace SquareSpaceToJekyll
             });
 
             // TODO: Other pages
+            // TODO: Check if links are still alive
+
+            // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
+
+            // Other pages
+            var otherPages = children.Where(i => i.Name == "item" && i.Element(Namespaces.wpNS + "post_type").Value == "page" && i.Element(Namespaces.wpNS + "status").Value == "publish").ToArray();
+            Parallel.ForEach(otherPages, xmlPage => {
+                var page = new Page();
+                page.Title = xmlPage.Element("title").Value;
+                page.Link = xmlPage.Element("link").Value;
+                page.Content = xmlPage.Element(Namespaces.contentNS + "encoded").Value;
+                page.Save();
+            });
         }
 
-        public class LinkPost : BlogPost {
-            public LinkPost(XElement blogPostXML, IO io) : base(blogPostXML, io) {
 
-            }
+    }
+}
 
-            public string ExternalLink { get; set; }
+public static class UserSettings {
+    public static readonly bool DownloadImages;
+    public static readonly bool RemoveImageWidhtAndHeight;
+    public static readonly bool OverwriteExistingImages;
+    public static readonly bool ReportDeadLinks;
 
-            public override string Content {
-                set {
-                    content.AppendLine();
-                    content.Append("link: ");
-                    content.Append(ExternalLink);
-                    base.Content = value;
-                }
-            }
+    public const string PathToJekyllSite = "/Users/sankra/Projects/sankra.github.io/test";
+    public const string ImageFolder = "img";
+    public const string InternalLinkPrefix = "https://runar-ovesenhjerpbakk.squarespace.com/";
+
+    /// <summary>
+    /// This must match Squarespace's pattern to preserve SEO
+    /// </summary>
+    public const string BlogPostsURLPattern = "/blog/:year/:i_month/:day/:title";
+
+    static UserSettings() {
+        RemoveImageWidhtAndHeight = true;
+        DownloadImages = true;
+        OverwriteExistingImages = false;
+        ReportDeadLinks = true;
+    }
+
+
+}
+
+
+public class Page {
+    readonly StringBuilder content;
+  
+    public Page() {
+        content = new StringBuilder("---");
+    }
+
+    public string Title { get; set; }
+
+    public string Link { get; set; }
+
+    public string Content {
+        set {
+            Console.WriteLine($"Parsing page {Title}");
+            content.AppendLine();
+            content.AppendLine("layout: page");
+            content.Append("title: \"");
+            content.Append(Title.Replace("\"", "&quot;"));
+            content.AppendLine("\"");
+            content.Append("permalink: ");
+            content.AppendLine(Link);
+            content.AppendLine("---");
+            var squarespaceContentParser = new SquarespaceContentParser();
+            var squarespaceContent = squarespaceContentParser.Parse(Title, value);
+            content.AppendLine(squarespaceContent.Content);
+        }
+    }
+
+    public void Save() {
+        // Since Jekyll original theme already has an about...
+        if (Title.Equals("about", StringComparison.InvariantCultureIgnoreCase)) {
+            File.Delete(Path.Combine(UserSettings.PathToJekyllSite, "about.md"));
         }
 
-        public class BlogPost {
-            readonly IO io;
+        File.WriteAllText(Path.Combine(UserSettings.PathToJekyllSite, Title) + ".html", content.ToString());
+    }
+}
 
-            readonly string layout;
-            readonly List<string> tags;
+public class LinkPost : BlogPost {
+    public LinkPost(XElement blogPostXML, IO io) : base(blogPostXML, io) {
 
-            protected readonly StringBuilder content;
+    }
 
-            Image[] images;
+    public string ExternalLink { get; set; }
 
-            public BlogPost(XElement blogPostXML, IO io) {
-                this.io = io;
-                IsDraft = blogPostXML.Element(Namespaces.wpNS + "status").Value == "draft";
+    public override string Content {
+        set {
+            content.AppendLine();
+            content.Append("link: ");
+            content.Append(ExternalLink);
+            base.Content = value;
+        }
+    }
+}
 
-                layout = "post";
-                tags = new List<string>();
+public class BlogPost {
+    readonly IO io;
 
-                content = new StringBuilder("---");
-                images = new Image[0];
-            }
+    readonly string layout;
+    readonly List<string> tags;
 
-            public bool IsDraft { get; }
+    protected readonly StringBuilder content;
 
-            public string Title { get; set; }
+    public BlogPost(XElement blogPostXML, IO io) {
+        this.io = io;
+        IsDraft = blogPostXML.Element(Namespaces.wpNS + "status").Value == "draft";
 
-            public string WebSafeTitle { get; private set; }
+        layout = "post";
+        tags = new List<string>();
 
-            public string Link {
-                set {
-                    var dateParts = value.Split('/');
-                    NameWithDate = $"{dateParts[2]}-{dateParts[3]}-{dateParts[4]}-{dateParts[5]}";
-                    WebSafeTitle = dateParts[5];
-                }
-            }
+        content = new StringBuilder("---");
+    }
 
-            public string NameWithDate { get; private set; }
+    public bool IsDraft { get; }
 
-            public virtual string Content {
-                get {
-                    return content.ToString();
-                }
+    public string Title { get; set; }
 
-                set {
-                    Console.WriteLine($"Parsing {Title}");
-                    content.AppendLine();
-                    content.Append("layout: ");
-                    content.AppendLine(layout);
-                    content.Append("title: \"");
-                    content.Append(Title.Replace("\"", "&quot;"));
-                    content.AppendLine("\"");
-                    if (tags.Count > 0) {
-                        content.Append("tags: ");
-                        var tagsString = string.Join(", ", tags);
-                        content.AppendLine($"[{tagsString}]");
-                    }
+    public string WebSafeTitle { get; private set; }
 
-                    content.AppendLine("---");
-                    var normalizedContent = Regex.Replace(value, @"\[caption id="".*"" align="".*"" width="".*""\]", "");
-                    normalizedContent = normalizedContent.Replace("[/caption]", "");
+    public string Link {
+        set {
+            var dateParts = value.Split('/');
+            NameWithDate = $"{dateParts[2]}-{dateParts[3]}-{dateParts[4]}-{dateParts[5]}";
+            WebSafeTitle = dateParts[5];
+        }
+    }
 
-                    var htmlDocument = new HtmlDocument();
-                    htmlDocument.LoadHtml(normalizedContent);
+    public string NameWithDate { get; private set; }
 
-                    var attributesToRemove = new List<HtmlAttribute>();
-                    var imageTags = htmlDocument.DocumentNode.SelectNodes("//img");
-                    if (UserSettings.DownloadAndFixImages && imageTags != null) {
-                        images = new Image[imageTags.Count];
-                        Parallel.For(0, imageTags.Count, i => {
-                            var src = imageTags[i].Attributes["src"];
-                            var width = imageTags[i].Attributes["width"];
-                            if (width != null) {
-                                attributesToRemove.Add(width);
-                            }
-
-                            var height = imageTags[i].Attributes["height"];
-                            if (height != null) {
-                                attributesToRemove.Add(height);
-                            }
-
-                            var imageUrl = src.Value;
-                            if (!imageUrl.StartsWith("http", StringComparison.InvariantCulture)) {
-                                var normalizedImageUrl = imageUrl.StartsWith("/", StringComparison.InvariantCulture) ? imageUrl.Remove(0, 1) : imageUrl;
-                                imageUrl = UserSettings.InternalLinkPrefix + normalizedImageUrl;
-                            }
-                            
-                            Console.WriteLine($"Downloading {imageUrl}...");
-
-                            using (var httpClient = new HttpClient()) {
-                                httpClient.MaxResponseContentBufferSize = 2000000L;
-                                httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-
-                                httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                                httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.17 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.17");
-
-                                var request = new HttpRequestMessage() {
-                                    RequestUri = new Uri(imageUrl),
-                                    Method = HttpMethod.Get,
-                                };
-
-                                var getTask = httpClient.SendAsync(request);
-                                getTask.Wait();
-                                var response = getTask.Result;
-                                response.EnsureSuccessStatusCode();
-                                var jsonTask = response.Content.ReadAsByteArrayAsync();
-                                jsonTask.Wait();
-
-                                var imageName = i + Path.GetFileName(imageUrl);
-                                var queryIndex = imageName.LastIndexOf('?');
-                                if (queryIndex != -1) {
-                                    imageName = imageName.Remove(queryIndex, imageName.Length - queryIndex);    
-                                }
-
-                                var imageFolderNameForPost = Path.GetFileNameWithoutExtension(WebSafeTitle);
-                                images[i] = new Image($"/{UserSettings.ImageFolder}/{imageFolderNameForPost}/{(imageName)}", jsonTask.Result);
-                            }
-
-                            src.Value = images[i].Source;
-                        });
-                    }
-
-                    foreach (var attribute in attributesToRemove) {
-                        attribute.Remove();
-                    }
-
-                    using (var writer = new StringWriter()) {
-                        htmlDocument.Save(writer);
-                        content.AppendLine(writer.ToString());
-                    }
-                }
-            }
-
-            public Image[] Images { get { return images; } }
-
-            public void AddTag(string tag) {
-                tags.Add(tag);
-            }
-
-            public void Save() {
-                io.Save(this);
-            }
+    public virtual string Content {
+        get {
+            return content.ToString();
         }
 
-        public class IO {
-            readonly string pathToJekyllSite;
-            readonly string postsPath;
-            readonly string draftsPath;
-
-            public IO(string pathToJekyllSite) {
-                postsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_posts")).FullName;
-                draftsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_drafts")).FullName;
-                this.pathToJekyllSite = Directory.CreateDirectory(Path.Combine(pathToJekyllSite)).FullName;
+        set {
+            Console.WriteLine($"Parsing blogpost {Title}");
+            content.AppendLine();
+            //content.AppendLine("category: blog");
+            content.AppendLine($"permalink: {UserSettings.BlogPostsURLPattern}");
+            content.Append("layout: ");
+            content.AppendLine(layout);
+            content.Append("title: \"");
+            content.Append(Title.Replace("\"", "&quot;"));
+            content.AppendLine("\"");
+            if (tags.Count > 0) {
+                content.Append("tags: ");
+                var tagsString = string.Join(", ", tags);
+                content.AppendLine($"[{tagsString}]");
             }
 
-            public void Save(BlogPost blogPost) {
-                SaveBlogPost(blogPost);
-                SaveImages(blogPost);
-            }
-
-            void SaveBlogPost(BlogPost blogPost) {
-                var savePath = blogPost.IsDraft ? draftsPath : postsPath;
-                File.WriteAllText(Path.Combine(savePath, blogPost.NameWithDate) + ".html", blogPost.Content);
-            }
-
-            void SaveImages(BlogPost blogPost) {
-                foreach (var image in blogPost.Images) {
-                    var imageDirForPost = pathToJekyllSite + Path.GetDirectoryName(image.Source);
-                    Directory.CreateDirectory(imageDirForPost);
-                    var imageName = WebUtility.UrlDecode(image.Name);
-                    File.WriteAllBytes(Path.Combine(imageDirForPost, imageName), image.Content);
-                }
-            }
+            content.AppendLine("---");
+            var squarespaceContentParser = new SquarespaceContentParser();
+            var squarespaceContent = squarespaceContentParser.Parse(WebSafeTitle, value);
+            content.AppendLine(squarespaceContent.Content);
         }
+    }
 
-        public struct Image {
-            public Image(string source, byte[] content) {
-                Source = source;
-                Content = content;
-            }
+    public void AddTag(string tag) {
+        tags.Add(tag);
+    }
 
-            public string Source { get; }
-            public string Name => Path.GetFileName(Source);
-            public byte[] Content { get; }
-        }
+    public void Save() {
+        io.Save(this);
+    }
+}
 
-        public static class UserSettings {
-            public const bool DownloadAndFixImages = true;
-            public const string ImageFolder = "img";
-            public const string InternalLinkPrefix = "https://runar-ovesenhjerpbakk.squarespace.com/";
-        }
 
-        public static class Namespaces {
-            public static readonly XNamespace wpNS = "http://wordpress.org/export/1.2/";
-            public static readonly XNamespace contentNS = "http://purl.org/rss/1.0/modules/content/";
-        }
+
+
+
+public static class Namespaces {
+    public static readonly XNamespace wpNS = "http://wordpress.org/export/1.2/";
+    public static readonly XNamespace contentNS = "http://purl.org/rss/1.0/modules/content/";
+}
+
+public class IO {
+    readonly string postsPath;
+    readonly string draftsPath;
+
+    public IO(string pathToJekyllSite) {
+        postsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_posts")).FullName;
+        draftsPath = Directory.CreateDirectory(Path.Combine(pathToJekyllSite, "_drafts")).FullName;
+        Directory.CreateDirectory(Path.Combine(pathToJekyllSite));
+    }
+
+    public void Save(BlogPost blogPost) {
+        SaveBlogPost(blogPost);
+    }
+
+    void SaveBlogPost(BlogPost blogPost) {
+        var savePath = blogPost.IsDraft ? draftsPath : postsPath;
+        File.WriteAllText(Path.Combine(savePath, blogPost.NameWithDate) + ".html", blogPost.Content);
     }
 }

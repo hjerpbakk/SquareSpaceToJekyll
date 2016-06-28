@@ -46,6 +46,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SquareSpaceXMLParser.cs" />
     <Compile Include="Model\SiteMetaData.cs" />
+    <Compile Include="SquareSpaceContentParser.cs" />
+    <Compile Include="SquarespaceContent.cs" />
+    <Compile Include="Image.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Model\" />
