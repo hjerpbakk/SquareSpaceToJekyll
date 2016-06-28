@@ -5,24 +5,21 @@ using System.Net.Http;
 
 namespace SquareSpaceToJekyll {
     public struct Image {
-        public Image(string source) {
-            Source = source;
-        }
-
-        public string Source { get; }
-
-        public void Download(string imageUrl) {
+        public void Download(string imageUrl, string imageSource) {
             // TODO: Do directory creation one time in one place
-            var imageDirForPost = UserSettings.PathToJekyllSite + Path.GetDirectoryName(Source);
+            var imageDirForPost = UserSettings.PathToJekyllSite + Path.GetDirectoryName(imageSource);
             Directory.CreateDirectory(imageDirForPost);
-            var imageName = WebUtility.UrlDecode(Path.GetFileName(Source));
+            var imageName = WebUtility.UrlDecode(Path.GetFileName(imageSource));
             var imagePath = Path.Combine(imageDirForPost, imageName);
             if (!UserSettings.OverwriteExistingImages && File.Exists(imagePath)) {
                 Console.WriteLine($"{imageName} already exists, skipping download...");
                 return;
             }
 
-            using (var httpClient = new HttpClient()) {
+            var handler = new HttpClientHandler() {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+            };
+            using (var httpClient = new HttpClient(handler)) {
                 httpClient.MaxResponseContentBufferSize = 2000000L;
                 httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
                 httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
@@ -39,6 +36,9 @@ namespace SquareSpaceToJekyll {
                 response.EnsureSuccessStatusCode();
                 var jsonTask = response.Content.ReadAsByteArrayAsync();
                 jsonTask.Wait();
+                if (jsonTask.IsFaulted) {
+                    throw jsonTask.Exception;
+                }
 
                 File.WriteAllBytes(imagePath, jsonTask.Result);
             }

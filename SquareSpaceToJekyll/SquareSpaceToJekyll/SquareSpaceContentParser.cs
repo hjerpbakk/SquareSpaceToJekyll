@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -18,8 +19,8 @@ namespace SquareSpaceToJekyll {
             var attributesToRemove = new List<HtmlAttribute>();
             var imageTags = htmlDocument.DocumentNode.SelectNodes("//img");
             if (UserSettings.DownloadImages && imageTags != null) {
+                var imagesEncountered = new ConcurrentDictionary<string, string>();
                 Parallel.For(0, imageTags.Count, i => {
-                    var src = imageTags[i].Attributes["src"];
                     if (UserSettings.RemoveImageWidhtAndHeight) {
                         var width = imageTags[i].Attributes["width"];
                         if (width != null) {
@@ -32,14 +33,20 @@ namespace SquareSpaceToJekyll {
                         }    
                     }
 
+                    var src = imageTags[i].Attributes["src"];
                     var imageUrl = src.Value;
                     if (!imageUrl.StartsWith("http", StringComparison.InvariantCulture)) {
                         var normalizedImageUrl = imageUrl.StartsWith("/", StringComparison.InvariantCulture) ? imageUrl.Remove(0, 1) : imageUrl;
                         imageUrl = UserSettings.InternalLinkPrefix + normalizedImageUrl;
                     }
 
-                    Console.WriteLine($"Downloading {imageUrl}...");
+                    if (imagesEncountered.ContainsKey(imageUrl)) {
+                        src.Value = imagesEncountered[imageUrl];
+                        Console.WriteLine($"Reusing {imageUrl}");
+                        return;
+                    }
 
+                    Console.WriteLine($"Downloading {imageUrl}...");
                     var imageName = i + Path.GetFileName(imageUrl);
                     var queryIndex = imageName.LastIndexOf('?');
                     if (queryIndex != -1) {
@@ -47,9 +54,11 @@ namespace SquareSpaceToJekyll {
                     }
 
                     var imageFolderNameForPost = Path.GetFileNameWithoutExtension(webSafeTitle);
-                    var image = new Image($"/{UserSettings.ImageFolder}/{imageFolderNameForPost}/{(imageName)}");
-                    image.Download(imageUrl);
-                    src.Value = image.Source;
+                    var imageSource = $"/{UserSettings.ImageFolder}/{imageFolderNameForPost}/{(imageName)}";
+                    imagesEncountered.TryAdd(imageUrl, imageSource);
+                    var image = new Image();
+                    image.Download(imageUrl, imageSource);
+                    src.Value = imageSource;
                 });
             }
 
