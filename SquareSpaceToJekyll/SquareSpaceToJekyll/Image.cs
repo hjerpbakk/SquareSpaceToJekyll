@@ -34,13 +34,13 @@ namespace SquareSpaceToJekyll {
                 getTask.Wait();
                 var response = getTask.Result;
                 response.EnsureSuccessStatusCode();
-                var jsonTask = response.Content.ReadAsByteArrayAsync();
-                jsonTask.Wait();
-                if (jsonTask.IsFaulted) {
-                    throw jsonTask.Exception;
+                var contentReadTask = response.Content.ReadAsByteArrayAsync();
+                contentReadTask.Wait();
+                if (contentReadTask.IsFaulted) {
+                    throw contentReadTask.Exception;
                 }
 
-                File.WriteAllBytes(imagePath, jsonTask.Result);
+                File.WriteAllBytes(imagePath, contentReadTask.Result);
             }
         }
     }
