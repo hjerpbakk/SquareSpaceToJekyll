@@ -92,7 +92,7 @@ public static class UserSettings {
     /// <summary>
     /// This must match Squarespace's pattern to preserve SEO
     /// </summary>
-    public const string BlogPostsURLPattern = "/blog/:year/:i_month/:day/:title";
+    public const string BlogPostsURLPattern = "/blog/:year/:i_month/:i_day/:title";
 
     static UserSettings() {
         RemoveImageWidhtAndHeight = true;
