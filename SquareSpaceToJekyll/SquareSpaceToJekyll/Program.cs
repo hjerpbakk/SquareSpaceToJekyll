@@ -58,6 +58,8 @@ namespace SquareSpaceToJekyll
                 blogPost.Save();
             });
 
+            // TODO: Favicon
+            // TODO: Remove data-preserve-html-node="true" in all pages and posts
             // TODO: Refactor
 
             // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
@@ -83,7 +85,7 @@ public static class UserSettings {
     public static readonly bool OverwriteExistingImages;
     public static readonly bool ReportDeadLinks;
 
-    public const string PathToJekyllSite = "/Users/sankra/Projects/sankra.github.io/test";
+    public const string PathToJekyllSite = "/Users/sankra/Projects/sankra.github.io";
     public const string ImageFolder = "img";
     public const string InternalLinkPrefix = "https://runar-ovesenhjerpbakk.squarespace.com/";
 
