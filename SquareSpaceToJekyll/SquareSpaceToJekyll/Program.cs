@@ -18,13 +18,24 @@ namespace SquareSpaceToJekyll
 {
     class MainClass
     {
-        public static void Main (string [] args)
-        {
+        public static void Main (string [] args) {
             var xml = XElement.Load("/Users/sankra/Projects/SquareSpaceToJekyll/export.xml");
 
             var children = xml.Elements().Single().Elements().ToArray();
 
-            // Site meatadata
+            // SaveSiteMetadata(children);
+            SaveBlogposts(children);
+            // SaveOtherPages(children);
+
+
+            // TODO: Remove data-preserve-html-node="true" in all pages and posts
+            // TODO: Favicon
+            // TODO: Refactor
+
+            // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
+        }
+
+        static void SaveSiteMetadata(XElement[] children) {
             var siteMetaData = new SiteMetaData();
             siteMetaData.Title = children.First(e => e.Name == "title").Value;
             siteMetaData.Description = children.First(e => e.Name == "description").Value;
@@ -32,8 +43,9 @@ namespace SquareSpaceToJekyll
                 var a = new YamlDotNet.Serialization.Serializer();
                 a.Serialize(writer, siteMetaData);
             }
+        }
 
-            // Blog posts
+        static void SaveBlogposts(XElement[] children) {
             var io = new IO(UserSettings.PathToJekyllSite);
             var blogPosts = children.Where(i => i.Name == "item" && i.Element(Namespaces.wpNS + "post_type").Value == "post").ToArray();
             Parallel.ForEach(blogPosts, xmlBlogPost => {
@@ -57,14 +69,9 @@ namespace SquareSpaceToJekyll
 
                 blogPost.Save();
             });
+        }
 
-            // TODO: Favicon
-            // TODO: Remove data-preserve-html-node="true" in all pages and posts
-            // TODO: Refactor
-
-            // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
-
-            // Other pages
+        static void SaveOtherPages(XElement[] children) {
             var otherPages = children.Where(i => i.Name == "item" && i.Element(Namespaces.wpNS + "post_type").Value == "page" && i.Element(Namespaces.wpNS + "status").Value == "publish").ToArray();
             Parallel.ForEach(otherPages, xmlPage => {
                 var page = new Page();
@@ -74,8 +81,6 @@ namespace SquareSpaceToJekyll
                 page.Save();
             });
         }
-
-
     }
 }
 
@@ -152,9 +157,9 @@ public class LinkPost : BlogPost {
 
     public override string Content {
         set {
-            content.AppendLine();
+            content.AppendLine("- link");
             content.Append("link: ");
-            content.Append(ExternalLink);
+            content.AppendLine(ExternalLink);
             base.Content = value;
         }
     }
@@ -176,6 +181,9 @@ public class BlogPost {
         tags = new List<string>();
 
         content = new StringBuilder("---");
+        content.AppendLine();
+        content.AppendLine("categories:");
+        content.AppendLine("- blog");
     }
 
     public bool IsDraft { get; }
@@ -201,8 +209,6 @@ public class BlogPost {
 
         set {
             Console.WriteLine($"Parsing blogpost {Title}");
-            content.AppendLine();
-            //content.AppendLine("category: blog");
             content.AppendLine($"permalink: {UserSettings.BlogPostsURLPattern}");
             content.Append("layout: ");
             content.AppendLine(layout);

@@ -16,7 +16,7 @@ namespace SquareSpaceToJekyll {
             var htmlDocument = new HtmlDocument();
             htmlDocument.LoadHtml(normalizedContent);
 
-            var attributesToRemove = new List<HtmlAttribute>();
+            var attributesToRemove = new ConcurrentBag<HtmlAttribute>();
             var imageTags = htmlDocument.DocumentNode.SelectNodes("//img");
             if (UserSettings.DownloadImages && imageTags != null) {
                 var imagesEncountered = new ConcurrentDictionary<string, string>();
