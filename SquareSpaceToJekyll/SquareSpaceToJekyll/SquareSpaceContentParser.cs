@@ -9,6 +9,13 @@ using HtmlAgilityPack;
 
 namespace SquareSpaceToJekyll {
     public class SquarespaceContentParser {
+
+        static readonly ConcurrentDictionary<string, string> imagesEncountered;
+
+        static SquarespaceContentParser() {
+            imagesEncountered = new ConcurrentDictionary<string, string>();
+        }
+
         public SquarespaceContent Parse(string webSafeTitle, string content) {
             var normalizedContent = Regex.Replace(content, @"\[caption id="".*"" align="".*"" width="".*""\]", "");
             normalizedContent = normalizedContent.Replace("[/caption]", "");
@@ -17,10 +24,23 @@ namespace SquareSpaceToJekyll {
             htmlDocument.LoadHtml(normalizedContent);
 
             var attributesToRemove = new ConcurrentBag<HtmlAttribute>();
-            var imageTags = htmlDocument.DocumentNode.SelectNodes("//img");
-            if (UserSettings.DownloadImages && imageTags != null) {
-                var imagesEncountered = new ConcurrentDictionary<string, string>();
-                Parallel.For(0, imageTags.Count, i => {
+            var images = new ConcurrentBag<HtmlNode>();
+
+            var allTags = htmlDocument.DocumentNode.Descendants();
+            Parallel.ForEach(allTags, node => {
+                var attributeToRemove = node.Attributes["data-preserve-html-node"];
+                if (attributeToRemove != null) {
+                    attributesToRemove.Add(attributeToRemove);
+                }
+
+                if (node.Name == "img") {
+                    images.Add(node);
+                }
+            });
+
+            if (UserSettings.DownloadImages && images.Count != 0) {
+                var imageTags = images.ToArray();
+                Parallel.For(0, imageTags.Length, i => {
                     if (UserSettings.RemoveImageWidhtAndHeight) {
                         var width = imageTags[i].Attributes["width"];
                         if (width != null) {
@@ -47,7 +67,7 @@ namespace SquareSpaceToJekyll {
                     }
 
                     Console.WriteLine($"Downloading {imageUrl}...");
-                    var imageName = i + Path.GetFileName(imageUrl);
+                    var imageName = i + Path.GetFileName(imageUrl).Replace("%", "");
                     var queryIndex = imageName.LastIndexOf('?');
                     if (queryIndex != -1) {
                         imageName = imageName.Remove(queryIndex, imageName.Length - queryIndex);

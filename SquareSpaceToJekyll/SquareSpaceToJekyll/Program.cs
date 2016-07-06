@@ -23,12 +23,11 @@ namespace SquareSpaceToJekyll
 
             var children = xml.Elements().Single().Elements().ToArray();
 
-            // SaveSiteMetadata(children);
+            SaveSiteMetadata(children);
             SaveBlogposts(children);
-            // SaveOtherPages(children);
+            SaveOtherPages(children);
 
 
-            // TODO: Remove data-preserve-html-node="true" in all pages and posts
             // TODO: Favicon
             // TODO: Refactor
 
