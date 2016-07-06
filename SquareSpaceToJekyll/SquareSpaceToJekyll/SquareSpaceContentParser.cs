@@ -36,7 +36,7 @@ namespace SquareSpaceToJekyll {
                 if (node.Name == "img") {
                     images.Add(node);
                 }
-            });
+            }); 
 
             if (UserSettings.DownloadImages && images.Count != 0) {
                 var imageTags = images.ToArray();
@@ -72,6 +72,13 @@ namespace SquareSpaceToJekyll {
                     if (queryIndex != -1) {
                         imageName = imageName.Remove(queryIndex, imageName.Length - queryIndex);
                     }
+
+                    queryIndex = imageName.LastIndexOf(".png", StringComparison.InvariantCulture);
+                    if (queryIndex != -1) {
+                        imageName = imageName.Remove(queryIndex + 4, imageName.Length - queryIndex - 4);
+                    }
+
+                    imageName = imageName.Replace("+", "%20");
 
                     var imageFolderNameForPost = Path.GetFileNameWithoutExtension(webSafeTitle);
                     var imageSource = $"/{UserSettings.ImageFolder}/{imageFolderNameForPost}/{(imageName)}";

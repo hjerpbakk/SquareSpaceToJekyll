@@ -64,6 +64,11 @@ namespace SquareSpaceToJekyll
                     blogPost.AddTag(tag);
                 }
 
+                // Single post filter
+                //if (blogPost.Title != "No content in Solution Explorer using Visual Studio 2013") {
+                //    return;
+                //}
+
                 blogPost.Content = xmlBlogPost.Element(Namespaces.contentNS + "encoded").Value;
 
                 blogPost.Save();
