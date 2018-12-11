@@ -16,7 +16,7 @@ namespace SquareSpaceToJekyll {
                 return;
             }
 
-            var handler = new HttpClientHandler() {
+            var handler = new HttpClientHandler {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             };
             using (var httpClient = new HttpClient(handler)) {

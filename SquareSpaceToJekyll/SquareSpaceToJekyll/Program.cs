@@ -1,24 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using HtmlAgilityPack;
 using SquareSpaceToJekyll;
 using SquareSpaceToJekyll.Model;
 
-namespace SquareSpaceToJekyll
-{
-    class MainClass
-    {
-        public static void Main (string [] args) {
+namespace SquareSpaceToJekyll {
+    class MainClass {
+        public static void Main(string[] args) {
             var xml = XElement.Load("/Users/sankra/Projects/SquareSpaceToJekyll/export.xml");
 
             var children = xml.Elements().Single().Elements().ToArray();
@@ -27,17 +19,16 @@ namespace SquareSpaceToJekyll
             SaveBlogposts(children);
             SaveOtherPages(children);
 
-
             // TODO: Favicon
             // TODO: Refactor
-
             // TODO: Issue - insert metadata collected from Squarespace site where it's useful for jekyll
         }
 
         static void SaveSiteMetadata(XElement[] children) {
-            var siteMetaData = new SiteMetaData();
-            siteMetaData.Title = children.First(e => e.Name == "title").Value;
-            siteMetaData.Description = children.First(e => e.Name == "description").Value;
+            var siteMetaData = new SiteMetaData {
+                Title = children.First(e => e.Name == "title").Value,
+                Description = children.First(e => e.Name == "description").Value
+            };
             using (TextWriter writer = File.CreateText(Path.Combine(UserSettings.PathToJekyllSite, "siteMetaData.yaml"))) {
                 var a = new YamlDotNet.Serialization.Serializer();
                 a.Serialize(writer, siteMetaData);
@@ -109,14 +100,11 @@ public static class UserSettings {
         OverwriteExistingImages = false;
         ReportDeadLinks = true;
     }
-
-
 }
-
 
 public class Page {
     readonly StringBuilder content;
-  
+
     public Page() {
         content = new StringBuilder("---");
     }
@@ -240,10 +228,6 @@ public class BlogPost {
         io.Save(this);
     }
 }
-
-
-
-
 
 public static class Namespaces {
     public static readonly XNamespace wpNS = "http://wordpress.org/export/1.2/";

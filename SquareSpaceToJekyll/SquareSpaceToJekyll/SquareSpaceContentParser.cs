@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -36,7 +34,7 @@ namespace SquareSpaceToJekyll {
                 if (node.Name == "img") {
                     images.Add(node);
                 }
-            }); 
+            });
 
             if (UserSettings.DownloadImages && images.Count != 0) {
                 var imageTags = images.ToArray();
@@ -50,7 +48,7 @@ namespace SquareSpaceToJekyll {
                         var height = imageTags[i].Attributes["height"];
                         if (height != null) {
                             attributesToRemove.Add(height);
-                        }    
+                        }
                     }
 
                     var src = imageTags[i].Attributes["src"];
